@@ -1,13 +1,16 @@
 """
 How to Prove My Worth
 
-My name is Alain Sánchez Gutiérrez. I'm a Software Developer and Father, both at full time. I like self-learn and I learn quick. I enjoy teach what I learn. I believe in teamwork and help teammates when they need.
+My name is Alain Sánchez Gutiérrez (https://about.me/mr.brazzi).
+
+I'm a Software Developer and Father, both at full time. I like self-learn and I learn quick. I enjoy teach what I learn. I believe in teamwork and help teammates when they need.
 
 This exam was developed on Windows 10 with Python 3.6 using PyCharm 2020.1.
 
 Please read README.md file before do anything
 """
 import os
+from zipfile import ZipFile
 
 import requests
 from PIL import Image, ImageDraw, ImageFont
@@ -24,7 +27,6 @@ def watermark_text(input_image_path,
     font = ImageFont.truetype(os.path.join(str(BASE_DIR), 'fonts', 'FreeMono.ttf'), size=20)
     pos = pos if pos else (photo.width / 4, photo.height / 2)
     drawing.text(pos, text, fill=color, font=font)
-    photo.show()
     photo.save(os.path.join(str(BASE_DIR), output_image_path))
 
 
@@ -32,6 +34,24 @@ def save_file(content, filename, mode='w'):
     with open(filename, mode) as file:
         file.write(content)
         file.close()
+
+
+def zip_files(filename):
+    if not os.path.exists(os.path.join(str(BASE_DIR), filename)):
+        with ZipFile(os.path.join(str(BASE_DIR), filename), 'w') as the_zip_file:
+            the_filter = ['fonts', 'FreeMono.ttf', '.env', '.env-sample', 'pyw.py', 'README.md', 'requirements.txt']
+
+            def add_to_zip(files, folder):
+                for file in files:
+                    if file in the_filter:
+                        the_zip_file.write(os.path.join(folder, file))
+
+            def the_walk(root_dir):
+                for folder_name, subfolders, filenames in os.walk(root_dir):
+                    add_to_zip(files=filenames, folder=folder_name)
+
+            the_walk(root_dir=BASE_DIR)
+            the_zip_file.close()
 
 
 def main():
@@ -68,7 +88,7 @@ def main():
 
     payload_filename = payload_page.headers.get('Content-Disposition').split('filename=')[1]
     if not payload_filename:
-        print('\nInvalid. No payload url. Try again.')
+        print('\nInvalid payload file. Try again.')
         exit()
 
     save_file(content=payload_page.content, filename=payload_filename, mode='wb')
@@ -80,10 +100,11 @@ def main():
     post_back_url = payload_page.headers.get('X-Post-Back-To')
 
     payload_file = payload_filename.split('.')
-    payload_filename_with_sign = payload_file[0] + '_with_sign.' + payload_file[1]
+    payload_filename_with_sign = f'{payload_file[0]}_with_sign.{payload_file[1]}'
     watermark_text(payload_filename, payload_filename_with_sign,
-                   text=f'{the_name}\nHash: {stateful_hash}',
-                   pos=(192, 128))
+                   text=f'{the_name}\nHash: {stateful_hash}')
+
+    zip_files(the_code)
 
     with open(os.path.join(str(BASE_DIR), the_cv), 'rb') as resume_file, \
             open(os.path.join(str(BASE_DIR), payload_filename_with_sign), 'rb') as image_file_signed, \
