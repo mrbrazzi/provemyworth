@@ -1,0 +1,12 @@
+version: "3"
+
+services:
+  app:
+    image: provemyworth/app:latest
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    container_name: pyw_app
+    volumes:
+      - ./docker-entrypoint.sh:/docker-entrypoint.sh
+      - .:/app/src
