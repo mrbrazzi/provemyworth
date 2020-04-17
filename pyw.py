@@ -6,121 +6,80 @@ My name is Alain Sánchez Gutiérrez (https://about.me/mr.brazzi).
 I'm a Software Developer and Father, both at full time. I like self-learn and I learn quick. I enjoy teach what I learn. I believe in teamwork and help teammates when they need.
 
 This exam was developed on Windows 10 with Python 3.6 using PyCharm 2020.1.
-
-Please read README.md file before do anything
 """
-import os
-from zipfile import ZipFile
+from pathlib import Path
 
 import requests
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 from bs4 import BeautifulSoup
-from dotenv import load_dotenv
 
 
-def watermark_text(input_image_path,
-                   output_image_path,
-                   text, pos=None):
-    photo = Image.open(os.path.join(str(BASE_DIR), input_image_path))
-    drawing = ImageDraw.Draw(photo)
-    color = (255, 69, 0)
-    font = ImageFont.truetype(os.path.join(str(BASE_DIR), 'fonts', 'FreeMono.ttf'), size=20)
-    pos = pos if pos else (photo.width / 4, photo.height / 2)
-    drawing.text(pos, text, fill=color, font=font)
-    photo.save(os.path.join(str(BASE_DIR), output_image_path))
+class ProveMyWorth:
+    the_name = 'Alain Sanchez Gutierrez'
+    the_email = 'brazzisoft.com@gmail.com'
+    the_username = 'mr.brazzi'
+    the_cv = 'cv_alain_sanchez_gutierrez.pdf'
+    the_code = 'pyw.py'
+    the_about_me = "I am a Software Developer and Father, both at full time. " \
+                   "I like self-learn and I learn quick. I enjoy teach what I learn. " \
+                   "I believe in teamwork and help teammates when they need."
+    the_hash = None
+    the_signed_filename = 'bmw_for_life.jpg'
+    the_user_agent = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36'}
+    base_url = 'https://www.proveyourworth.net/level3'
+    base_dir = None
+    session = None
 
+    def __init__(self):
+        self.base_dir = Path('.')
+        self.session = requests.Session()
 
-def save_file(content, filename, mode='w'):
-    with open(filename, mode) as file:
-        file.write(content)
-        file.close()
+    def sign_payload(self, input_image: bytes, output_image_name: str, text: str, pos=None) -> None:
+        photo = Image.open(input_image)
+        drawing = ImageDraw.Draw(photo)
+        pos = pos if pos else (photo.width / 8, photo.height / 2)
+        drawing.text(pos, text, fill=(255, 69, 0))
+        photo.save(self.base_dir / output_image_name, "JPEG")
 
+    @staticmethod
+    def print_log(txt: str) -> None:
+        print(txt)
 
-def zip_files(filename):
-    if not os.path.exists(os.path.join(str(BASE_DIR), filename)):
-        with ZipFile(os.path.join(str(BASE_DIR), filename), 'w') as the_zip_file:
-            the_filter = ['fonts', 'FreeMono.ttf', '.env', '.env-sample', 'pyw.py', 'README.md', 'requirements.txt']
+    def request_start(self) -> None:
+        response = self.session.get(url=f'{self.base_url}/start', headers=self.the_user_agent)
+        # self.print_log(f'*** Start ***\nSTATUS: {response.status_code}\n')
+        soup = BeautifulSoup(response.content, 'html.parser')
+        self.the_hash = soup.find('input', {'name': 'statefulhash'})['value']
+        # self.print_log(f'HASH: {self.the_hash}\n\n')
+        self.request_activate()
 
-            def add_to_zip(files, folder):
-                for file in files:
-                    if file in the_filter:
-                        the_zip_file.write(os.path.join(folder, file))
+    def request_activate(self) -> None:
+        response = self.session.get(url=f'{self.base_url}/activate?statefulhash={self.the_hash}&username={self.the_username}',
+                                    headers=self.the_user_agent)
+        # self.print_log(f'*** Activate ***\nSTATUS: {response.status_code}\nHEADERS: {response.headers}\nPAYLOAD-URL: {response.headers["X-Payload-URL"]}\n\n')
+        self.request_payload(url=response.headers['X-Payload-URL'])
 
-            def the_walk(root_dir):
-                for folder_name, subfolders, filenames in os.walk(root_dir):
-                    add_to_zip(files=filenames, folder=folder_name)
+    def request_payload(self, url: str) -> None:
+        response = self.session.get(url=url, stream=True, headers=self.the_user_agent)
+        # self.print_log(f'\n*** Payload ***\nSTATUS: {response.status_code}\nHEADERS: {response.headers}\nPOSTBACK-URL: {response.headers["X-Post-Back-To"]}\n\n')
+        self.sign_payload(input_image=response.raw, output_image_name=self.the_signed_filename,
+                          text=f'{self.the_name}\nHash: {self.the_hash}')
+        self.request_postback(url=response.headers['X-Post-Back-To'])
 
-            the_walk(root_dir=BASE_DIR)
-            the_zip_file.close()
-
-
-def main():
-    the_name = os.getenv('FULL_NAME')
-    the_username = os.getenv('USERNAME')
-    the_email = os.getenv('EMAIL')
-    the_cv = os.getenv('CV')
-    the_aboutme = os.getenv('ABOUT_ME')
-    the_code = os.getenv('CODE')
-
-    session = requests.Session()
-
-    start_url = 'https://www.proveyourworth.net/level3/start'
-    start_page = session.get(url=start_url)
-    print('*** Start ***')
-    print(f'STATUS: {start_page.status_code}')
-
-    soup = BeautifulSoup(start_page.content, 'html.parser')
-    stateful_hash = soup.find('input', {'name': 'statefulhash'}).get('value')
-
-    activate_url = f'https://www.proveyourworth.net/level3/activate?statefulhash={stateful_hash}&username={the_username}'
-    activate_page = session.get(url=activate_url)
-    print('\n*** Activate ***')
-    print(f'STATUS: {activate_page.status_code}')
-
-    payload_url = activate_page.headers.get('X-Payload-URL')
-    if not payload_url:
-        print('\nInvalid. No payload url. Try again.')
-        exit()
-
-    payload_page = session.get(url=payload_url, stream=True)
-    print('\n*** Payload ***')
-    print(f'STATUS: {payload_page.status_code}')
-
-    payload_filename = payload_page.headers.get('Content-Disposition').split('filename=')[1]
-    if not payload_filename:
-        print('\nInvalid payload file. Try again.')
-        exit()
-
-    save_file(content=payload_page.content, filename=payload_filename, mode='wb')
-
-    if not {'X-Post-Back-To', 'X-Post-Back-Fields', 'X-Please-Also-Provide', 'X-By-The-Way'} <= set(dict(payload_page.headers).keys()):
-        print('\nInvalid payload headers. Try again.')
-        exit()
-
-    post_back_url = payload_page.headers.get('X-Post-Back-To')
-
-    payload_file = payload_filename.split('.')
-    payload_filename_with_sign = f'{payload_file[0]}_with_sign.{payload_file[1]}'
-    watermark_text(payload_filename, payload_filename_with_sign,
-                   text=f'{the_name}\nHash: {stateful_hash}')
-
-    zip_files(the_code)
-
-    with open(os.path.join(str(BASE_DIR), the_cv), 'rb') as resume_file, \
-            open(os.path.join(str(BASE_DIR), payload_filename_with_sign), 'rb') as image_file_signed, \
-            open(os.path.join(str(BASE_DIR), the_code), 'rb') as code_file:
-        post_data = {'name': the_name, 'email': the_email, 'aboutme': the_aboutme}
-        post_files = {'resume': resume_file, 'code': code_file, 'image': image_file_signed}
-        post_back_page = session.post(post_back_url, data=post_data, files=post_files)
-        print('\n*** Post Back ***')
-        print(f'STATUS: {post_back_page.status_code}')
+    def request_postback(self, url: str) -> None:
+        with open(self.base_dir / self.the_cv, 'rb') as resume_file, \
+                open(self.base_dir / self.the_signed_filename, 'rb') as signed_image_file, \
+                open(self.base_dir / self.the_code, 'rb') as code_file:
+            post_data = {'email': self.the_email, 'name': self.the_name, 'aboutme': self.the_about_me,
+                         'statefulhash': self.the_hash, 'username': self.the_username}
+            post_files = {'image': (self.the_signed_filename, signed_image_file), 'code': (self.the_code, code_file),
+                          'resume': (self.the_cv, resume_file)}
+            response = self.session.post(url, data=post_data, files=post_files, headers=self.the_user_agent)
+            self.print_log(f'\n*** Post Back ***\nSTATUS: {response.status_code}'
+                           # f'\n\n**** REQUEST ****\nHEADER: {response.request.headers}'
+                           f'\n\n**** RESPONSE ****\nHEADER: {response.headers}\nBODY:\n{response.text}')
 
 
 if __name__ == "__main__":
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    if not os.path.exists(os.path.join(str(BASE_DIR), '.env')):
-        print('\nInvalid. No ".env" file detected. Please read topic "Create and update environment values" in README.md file')
-        exit()
-
-    load_dotenv(dotenv_path=str(os.path.join(str(BASE_DIR), '.env')))
-    main()
+    pmw = ProveMyWorth()
+    pmw.request_start()
