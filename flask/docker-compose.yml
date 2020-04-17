@@ -1,0 +1,15 @@
+version: "3"
+
+services:
+  app:
+    image: provemyworth/server:latest
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    container_name: pyw_server
+    # command: python -m flask run --host=0.0.0.0
+    volumes:
+      - ./docker-entrypoint.sh:/docker-entrypoint.sh
+      - .:/app/src
+    ports:
+      - 5000:5000
