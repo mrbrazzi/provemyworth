@@ -42,6 +42,10 @@ class ProveMyWorth:
         photo.save(self.base_dir / output_image_name, "JPEG")
 
     @staticmethod
+    def check_url(url: str) -> str:
+        return url.replace('http', 'https') if 'https' not in url else url
+
+    @staticmethod
     def print_log(txt: str) -> None:
         print(txt)
 
@@ -57,22 +61,22 @@ class ProveMyWorth:
         response = self.session.get(url=f'{self.base_url}/activate?statefulhash={self.the_hash}&username={self.the_username}',
                                     headers=self.the_user_agent)
         # self.print_log(f'*** Activate ***\nSTATUS: {response.status_code}\nHEADERS: {response.headers}\nPAYLOAD-URL: {response.headers["X-Payload-URL"]}\n\n')
-        self.request_payload(url=response.headers['X-Payload-URL'])
+        self.request_payload(url=self.check_url(response.headers['X-Payload-URL']))
 
     def request_payload(self, url: str) -> None:
         response = self.session.get(url=url, stream=True, headers=self.the_user_agent)
         # self.print_log(f'\n*** Payload ***\nSTATUS: {response.status_code}\nHEADERS: {response.headers}\nPOSTBACK-URL: {response.headers["X-Post-Back-To"]}\n\n')
         self.sign_payload(input_image=response.raw, output_image_name=self.the_signed_filename,
                           text=f'{self.the_name}\nHash: {self.the_hash}')
-        self.request_postback(url=response.headers['X-Post-Back-To'])
+        self.request_postback(url=self.check_url(response.headers['X-Post-Back-To']))
 
     def request_postback(self, url: str) -> None:
         with open(self.base_dir / self.the_cv, 'rb') as resume_file, \
                 open(self.base_dir / self.the_signed_filename, 'rb') as signed_image_file, \
                 open(self.base_dir / self.the_code, 'rb') as code_file:
-            post_data = {'email': self.the_email, 'name': self.the_name, 'aboutme': self.the_about_me,
-                         'statefulhash': self.the_hash, 'username': self.the_username}
-            post_files = {'image': (self.the_signed_filename, signed_image_file), 'code': (self.the_code, code_file),
+            post_data = {'email': self.the_email, 'name': self.the_name, 'aboutme': self.the_about_me}
+            post_files = {'image': (self.the_signed_filename, signed_image_file),
+                          'code': (self.the_code, code_file),
                           'resume': (self.the_cv, resume_file)}
             response = self.session.post(url, data=post_data, files=post_files, headers=self.the_user_agent)
             self.print_log(f'\n*** Post Back ***\nSTATUS: {response.status_code}'
